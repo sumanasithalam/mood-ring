@@ -1,0 +1,1425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+<title>bloom — mood tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #FDF8F4;
+    --surface: #FFFFFF;
+    --surface2: #F7F0EA;
+    --border: rgba(180,150,120,0.15);
+    --border2: rgba(180,150,120,0.28);
+    --text: #3D2E24;
+    --text2: #8C7468;
+    --text3: #B8A49A;
+    --rose: #E8A0A0;
+    --rose-light: #FBF0F0;
+    --sage: #A8BFA8;
+    --sage-light: #EFF5EF;
+    --peach: #E8B896;
+    --peach-light: #FDF4EE;
+    --lavender: #C4B0D8;
+    --lavender-light: #F5F0FB;
+    --sky: #96B8D8;
+    --sky-light: #EEF5FB;
+    --butter: #E0CC96;
+    --butter-light: #FBF7EE;
+    --coral: #E8A090;
+    --coral-light: #FBF1EF;
+    --mauve: #C0A0B8;
+    --mauve-light: #F7F0F5;
+    --radius: 20px;
+    --radius-sm: 12px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    max-width: 430px;
+    margin: 0 auto;
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  /* TOP NAV */
+  .top-bar {
+    position: sticky; top: 0; z-index: 100;
+    background: var(--bg);
+    padding: 16px 24px 12px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+  }
+  .app-name {
+    font-family: 'Fraunces', serif;
+    font-size: 22px; font-weight: 300;
+    color: var(--text);
+    letter-spacing: -0.3px;
+  }
+  .app-name span { font-style: italic; color: var(--rose); }
+  .top-date { font-size: 12px; color: var(--text3); font-weight: 400; }
+
+  /* BOTTOM NAV */
+  .bottom-nav {
+    position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 100%; max-width: 430px;
+    background: rgba(253,248,244,0.92);
+    backdrop-filter: blur(12px);
+    border-top: 1px solid var(--border);
+    display: flex; padding: 10px 0 max(10px, env(safe-area-inset-bottom));
+    z-index: 100;
+  }
+  .nav-btn {
+    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;
+    background: none; border: none; cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 10px; font-weight: 400;
+    color: var(--text3);
+    padding: 4px 0;
+    transition: color 0.2s;
+  }
+  .nav-btn.active { color: var(--text); }
+  .nav-btn svg { width: 22px; height: 22px; }
+  .nav-dot {
+    width: 4px; height: 4px; border-radius: 50%;
+    background: var(--rose); opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .nav-btn.active .nav-dot { opacity: 1; }
+
+  /* PAGES */
+  .page { display: none; padding: 20px 20px 100px; animation: fadeUp 0.3s ease; }
+  .page.active { display: block; }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* DATE NAV */
+  .date-nav {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .date-nav-btn {
+    width: 36px; height: 36px; border-radius: 50%;
+    border: 1px solid var(--border2); background: var(--surface);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 16px; color: var(--text2);
+    transition: background 0.15s;
+  }
+  .date-nav-btn:hover { background: var(--surface2); }
+  .date-nav-btn:disabled { opacity: 0.3; pointer-events: none; }
+  .date-center { text-align: center; }
+  .date-main { font-family: 'Fraunces', serif; font-size: 20px; font-weight: 300; color: var(--text); }
+  .date-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
+
+  /* CYCLE STRIP */
+  .cycle-strip {
+    background: var(--lavender-light);
+    border: 1px solid rgba(196,176,216,0.3);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .cycle-info { display: flex; align-items: center; gap: 8px; }
+  .cycle-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--lavender); }
+  .cycle-label { font-size: 12px; color: var(--text2); }
+  .cycle-phase { font-size: 12px; font-weight: 500; color: var(--text); }
+  .cycle-edit { font-size: 11px; color: var(--lavender); background: none; border: none; cursor: pointer; font-family: 'DM Sans', sans-serif; }
+
+  /* MOOD CARDS */
+  .section-label {
+    font-size: 11px; font-weight: 500; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--text3);
+    margin-bottom: 10px; margin-top: 18px;
+  }
+  .moods-grid {
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .mood-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .mood-icon-wrap {
+    width: 36px; height: 36px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 17px; flex-shrink: 0;
+  }
+  .mood-info { flex: 1; }
+  .mood-name { font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: 6px; }
+  .slider-row { display: flex; align-items: center; gap: 8px; }
+  .mood-slider {
+    flex: 1; -webkit-appearance: none; appearance: none;
+    height: 4px; border-radius: 2px; outline: none;
+    cursor: pointer;
+  }
+  .mood-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 18px; height: 18px; border-radius: 50%;
+    border: 2px solid white;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+    cursor: pointer;
+  }
+  .mood-val {
+    font-size: 13px; font-weight: 500; min-width: 18px;
+    text-align: right; color: var(--text2);
+  }
+
+  /* NOTES */
+  .notes-area {
+    width: 100%; min-height: 72px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px; color: var(--text);
+    resize: none; outline: none;
+    line-height: 1.6;
+    margin-top: 4px;
+  }
+  .notes-area::placeholder { color: var(--text3); }
+  .notes-area:focus { border-color: var(--border2); }
+
+  /* SAVE BTN */
+  .save-btn {
+    width: 100%; padding: 15px;
+    background: var(--text);
+    color: white; border: none;
+    border-radius: var(--radius);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px; font-weight: 500;
+    cursor: pointer; margin-top: 20px;
+    transition: opacity 0.15s, transform 0.1s;
+    letter-spacing: 0.01em;
+  }
+  .save-btn:active { transform: scale(0.98); opacity: 0.85; }
+  .save-btn.saved { background: var(--sage); }
+
+  /* CHARTS PAGE */
+  .week-tabs {
+    display: flex; gap: 6px; margin-bottom: 18px;
+    overflow-x: auto; padding-bottom: 2px;
+  }
+  .week-tab {
+    flex-shrink: 0; padding: 6px 14px;
+    border-radius: 20px; border: 1px solid var(--border2);
+    background: var(--surface); font-size: 12px;
+    color: var(--text2); cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .week-tab.active {
+    background: var(--text); color: white; border-color: var(--text);
+  }
+  .chart-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+  .chart-title {
+    font-size: 13px; font-weight: 500; color: var(--text);
+    margin-bottom: 14px;
+  }
+  .chart-subtitle { font-size: 11px; color: var(--text3); font-weight: 400; margin-left: 6px; }
+  .chart-wrap { position: relative; height: 160px; }
+
+  /* CYCLE CORRELATION */
+  .correlation-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 8px; margin-top: 4px;
+  }
+  .corr-card {
+    border-radius: var(--radius-sm);
+    padding: 12px;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .corr-phase { font-size: 11px; font-weight: 500; color: var(--text2); }
+  .corr-moods { font-size: 12px; color: var(--text); line-height: 1.5; }
+  .phase-menstrual { background: var(--rose-light); }
+  .phase-follicular { background: var(--sage-light); }
+  .phase-ovulatory { background: var(--butter-light); }
+  .phase-luteal { background: var(--lavender-light); }
+
+  /* SETTINGS PAGE */
+  .settings-section { margin-bottom: 24px; }
+  .settings-title {
+    font-family: 'Fraunces', serif; font-size: 16px; font-weight: 300;
+    color: var(--text); margin-bottom: 12px;
+  }
+  .setting-row {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 14px 16px;
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 6px;
+  }
+  .setting-label { font-size: 14px; color: var(--text); }
+  .setting-desc { font-size: 11px; color: var(--text3); margin-top: 2px; }
+  .toggle {
+    width: 44px; height: 26px; border-radius: 13px;
+    background: var(--border2); border: none; cursor: pointer;
+    position: relative; transition: background 0.2s;
+    flex-shrink: 0;
+  }
+  .toggle.on { background: var(--sage); }
+  .toggle::after {
+    content: ''; position: absolute;
+    top: 3px; left: 3px;
+    width: 20px; height: 20px; border-radius: 50%;
+    background: white; transition: transform 0.2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+  .toggle.on::after { transform: translateX(18px); }
+
+  .cycle-setup {
+    background: var(--lavender-light);
+    border: 1px solid rgba(196,176,216,0.3);
+    border-radius: var(--radius-sm);
+    padding: 16px;
+  }
+  .cycle-field { margin-bottom: 14px; }
+  .cycle-field label { font-size: 12px; color: var(--text2); display: block; margin-bottom: 6px; }
+  .cycle-field input {
+    width: 100%; padding: 10px 12px;
+    border: 1px solid var(--border2); border-radius: var(--radius-sm);
+    background: white; font-family: 'DM Sans', sans-serif;
+    font-size: 14px; color: var(--text); outline: none;
+  }
+  .cycle-field input:focus { border-color: var(--lavender); }
+  .apply-btn {
+    width: 100%; padding: 11px;
+    background: var(--lavender); color: white; border: none;
+    border-radius: var(--radius-sm); font-family: 'DM Sans', sans-serif;
+    font-size: 14px; cursor: pointer; transition: opacity 0.15s;
+  }
+  .apply-btn:active { opacity: 0.8; }
+
+  /* REMINDER */
+  .reminder-time-row {
+    display: flex; align-items: center; gap: 10px; margin-top: 8px;
+  }
+  .reminder-time-row input[type=time] {
+    flex: 1; padding: 10px 12px;
+    border: 1px solid var(--border2); border-radius: var(--radius-sm);
+    background: white; font-family: 'DM Sans', sans-serif;
+    font-size: 14px; color: var(--text); outline: none;
+  }
+  .reminder-save {
+    padding: 10px 16px; background: var(--text); color: white;
+    border: none; border-radius: var(--radius-sm);
+    font-family: 'DM Sans', sans-serif; font-size: 13px;
+    cursor: pointer;
+  }
+
+  /* TOAST */
+  .toast {
+    position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(10px);
+    background: var(--text); color: white;
+    padding: 10px 20px; border-radius: 20px;
+    font-size: 13px; opacity: 0;
+    transition: opacity 0.3s, transform 0.3s;
+    pointer-events: none; z-index: 200;
+    white-space: nowrap;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* STREAK */
+  .streak-banner {
+    background: var(--peach-light);
+    border: 1px solid rgba(232,184,150,0.3);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 16px;
+  }
+  .streak-icon { font-size: 22px; }
+  .streak-text { font-size: 13px; color: var(--text2); }
+  .streak-num { font-family: 'Fraunces', serif; font-size: 20px; font-weight: 400; color: var(--peach); }
+
+  /* GOOGLE SHEETS SYNC */
+  .sync-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+  }
+  .sync-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .sync-row:last-child { border-bottom: none; }
+  .sync-icon {
+    width: 32px; height: 32px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; font-size: 16px;
+  }
+  .sync-icon.sheets { background: #E8F5E9; }
+  .sync-icon.signed-in { background: var(--sage-light); }
+  .sync-info { flex: 1; min-width: 0; }
+  .sync-label { font-size: 13px; font-weight: 500; color: var(--text); }
+  .sync-desc { font-size: 11px; color: var(--text3); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sync-btn {
+    padding: 7px 14px; border-radius: 20px;
+    border: 1px solid var(--border2); background: var(--surface);
+    font-family: 'DM Sans', sans-serif; font-size: 12px;
+    color: var(--text2); cursor: pointer; white-space: nowrap;
+    transition: all 0.15s; flex-shrink: 0;
+  }
+  .sync-btn:hover { background: var(--surface2); }
+  .sync-btn.primary { background: var(--text); color: white; border-color: var(--text); }
+  .sync-btn.danger { color: var(--rose); border-color: rgba(232,160,160,0.4); }
+  .sync-status-bar {
+    font-size: 11px; color: var(--text3);
+    padding: 8px 16px; background: var(--surface2);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .sync-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text3); flex-shrink: 0; }
+  .sync-dot.ok { background: var(--sage); }
+  .sync-dot.err { background: var(--rose); }
+  .sync-dot.busy { background: var(--butter); animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  /* MOOD CUSTOMIZER */
+  .mood-customize-wrap {
+    background: var(--rose-light);
+    border: 1px solid rgba(232,160,160,0.2);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+  }
+  .mood-customize-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 11px 14px;
+    border-bottom: 1px solid rgba(232,160,160,0.12);
+    transition: background 0.12s;
+  }
+  .mood-customize-item:last-child { border-bottom: none; }
+  .mood-customize-item.inactive { opacity: 0.45; }
+  .mood-item-emoji { font-size: 16px; width: 24px; text-align: center; flex-shrink: 0; }
+  .mood-item-name { font-size: 13px; color: var(--text); flex: 1; }
+  .mood-item-custom-tag {
+    font-size: 10px; color: var(--mauve); background: var(--mauve-light);
+    padding: 2px 7px; border-radius: 8px; margin-right: 4px;
+  }
+  .mood-check {
+    width: 22px; height: 22px; border-radius: 50%;
+    border: 1.5px solid var(--border2); background: white;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; flex-shrink: 0; transition: all 0.15s;
+    font-size: 11px;
+  }
+  .mood-check.checked { background: var(--sage); border-color: var(--sage); color: white; }
+  .mood-delete {
+    width: 22px; height: 22px; border-radius: 50%;
+    border: 1.5px solid rgba(232,160,160,0.4); background: transparent;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; flex-shrink: 0; color: var(--rose); font-size: 13px;
+    margin-left: 4px;
+  }
+  .add-mood-row {
+    display: flex; gap: 8px; margin-top: 10px; align-items: center;
+  }
+  .add-mood-input {
+    flex: 1; padding: 10px 12px;
+    border: 1px solid var(--border2); border-radius: var(--radius-sm);
+    background: white; font-family: 'DM Sans', sans-serif;
+    font-size: 13px; color: var(--text); outline: none;
+  }
+  .add-mood-input:focus { border-color: var(--rose); }
+  .add-mood-emoji {
+    width: 42px; padding: 10px 0; text-align: center;
+    border: 1px solid var(--border2); border-radius: var(--radius-sm);
+    background: white; font-size: 16px; cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .add-mood-btn {
+    padding: 10px 14px; background: var(--text); color: white;
+    border: none; border-radius: var(--radius-sm);
+    font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer;
+    white-space: nowrap;
+  }
+  .add-mood-btn:active { opacity: 0.8; }
+  .mood-hint { font-size: 11px; color: var(--text3); margin-top: 8px; padding: 0 2px; }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { display: none; }
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <div class="app-name">bl<span>oo</span>m</div>
+  <div class="top-date" id="topDate"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- PAGE: LOG -->
+<div class="page active" id="page-log">
+  <div class="date-nav">
+    <button class="date-nav-btn" id="prevDay" onclick="changeDay(-1)">‹</button>
+    <div class="date-center">
+      <div class="date-main" id="dateMain"></div>
+      <div class="date-sub" id="dateSub"></div>
+    </div>
+    <button class="date-nav-btn" id="nextDay" onclick="changeDay(1)">›</button>
+  </div>
+
+  <div class="streak-banner" id="streakBanner">
+    <div class="streak-icon">🌸</div>
+    <div>
+      <div class="streak-text">current streak</div>
+      <span class="streak-num" id="streakNum">0</span><span class="streak-text"> days</span>
+    </div>
+  </div>
+
+  <div class="cycle-strip">
+    <div class="cycle-info">
+      <div class="cycle-dot"></div>
+      <span class="cycle-label">cycle phase:</span>
+      <span class="cycle-phase" id="cyclePhaseLabel">—</span>
+    </div>
+    <button class="cycle-edit" onclick="goTo('settings'); setTimeout(()=>document.getElementById('cycleSetup').scrollIntoView({behavior:'smooth'}),200)">edit</button>
+  </div>
+
+  <div class="section-label">how are you feeling today?</div>
+  <div class="moods-grid" id="moodsGrid"></div>
+
+  <div class="section-label" style="margin-top:20px;">notes</div>
+  <textarea class="notes-area" id="notesArea" placeholder="anything on your mind…" rows="3"></textarea>
+
+  <button class="save-btn" id="saveBtn" onclick="saveEntry()">save entry</button>
+</div>
+
+<!-- PAGE: TRENDS -->
+<div class="page" id="page-trends">
+  <div style="font-family:'Fraunces',serif;font-size:24px;font-weight:300;margin-bottom:4px;">your trends</div>
+  <div style="font-size:12px;color:var(--text3);margin-bottom:18px;">mood patterns over time</div>
+
+  <div class="week-tabs" id="weekTabs">
+    <button class="week-tab active" onclick="setRange(7,this)">7 days</button>
+    <button class="week-tab" onclick="setRange(14,this)">14 days</button>
+    <button class="week-tab" onclick="setRange(30,this)">30 days</button>
+  </div>
+
+  <div class="chart-card">
+    <div class="chart-title">mood overview <span class="chart-subtitle">daily averages</span></div>
+    <div class="chart-wrap"><canvas id="overviewChart"></canvas></div>
+  </div>
+
+  <div class="chart-card">
+    <div class="chart-title">by feeling <span class="chart-subtitle">select to highlight</span></div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;" id="moodLegend"></div>
+    <div class="chart-wrap"><canvas id="moodLineChart"></canvas></div>
+  </div>
+
+  <div class="chart-card" id="cycleCorrelationCard">
+    <div class="chart-title">cycle correlation <span class="chart-subtitle">avg mood by phase</span></div>
+    <div class="correlation-grid" id="correlationGrid"></div>
+  </div>
+</div>
+
+<!-- PAGE: SETTINGS -->
+<div class="page" id="page-settings">
+  <div style="font-family:'Fraunces',serif;font-size:24px;font-weight:300;margin-bottom:4px;">settings</div>
+  <div style="font-size:12px;color:var(--text3);margin-bottom:22px;">personalise bloom</div>
+
+  <div class="settings-section">
+    <div class="settings-title">google sheets sync</div>
+    <div class="sync-card">
+      <div class="sync-row" id="syncSignInRow">
+        <div class="sync-icon sheets">📊</div>
+        <div class="sync-info">
+          <div class="sync-label">connect google sheets</div>
+          <div class="sync-desc">entries sync automatically on save</div>
+        </div>
+        <button class="sync-btn primary" onclick="sheetsSignIn()">sign in</button>
+      </div>
+      <div class="sync-row" id="syncUserRow" style="display:none">
+        <div class="sync-icon signed-in">✓</div>
+        <div class="sync-info">
+          <div class="sync-label" id="syncUserName">connected</div>
+          <div class="sync-desc" id="syncSheetDesc">bloom mood tracker</div>
+        </div>
+        <button class="sync-btn danger" onclick="sheetsSignOut()">disconnect</button>
+      </div>
+      <div class="sync-row" id="syncActionsRow" style="display:none">
+        <div class="sync-icon" style="background:var(--peach-light);">↑</div>
+        <div class="sync-info">
+          <div class="sync-label">sync all entries</div>
+          <div class="sync-desc">push all local data to sheet</div>
+        </div>
+        <button class="sync-btn" onclick="syncAllToSheets()">sync now</button>
+      </div>
+      <div class="sync-row" id="syncPullRow" style="display:none">
+        <div class="sync-icon" style="background:var(--sky-light);">↓</div>
+        <div class="sync-info">
+          <div class="sync-label">pull from sheet</div>
+          <div class="sync-desc">import entries saved elsewhere</div>
+        </div>
+        <button class="sync-btn" onclick="syncFromSheets()">pull</button>
+      </div>
+      <div class="sync-status-bar" id="syncStatusBar" style="display:none">
+        <div class="sync-dot" id="syncDot"></div>
+        <span id="syncStatusText"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="settings-section">
+    <div class="settings-title">reminders</div>
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">daily reminder</div>
+        <div class="setting-desc">get a nudge to log your mood</div>
+      </div>
+      <button class="toggle" id="reminderToggle" onclick="toggleReminder()"></button>
+    </div>
+    <div id="reminderTimeRow" class="reminder-time-row" style="display:none">
+      <input type="time" id="reminderTime" value="20:00" />
+      <button class="reminder-save" onclick="saveReminder()">set</button>
+    </div>
+    <div style="font-size:11px;color:var(--text3);margin-top:6px;padding:0 4px;" id="reminderStatus"></div>
+  </div>
+
+  <div class="settings-section" id="cycleSetup">
+    <div class="settings-title">cycle tracking</div>
+    <div class="cycle-setup">
+      <div class="cycle-field">
+        <label>last period start date</label>
+        <input type="date" id="lastPeriod" />
+      </div>
+      <div class="cycle-field">
+        <label>average cycle length (days)</label>
+        <input type="number" id="cycleLength" value="28" min="21" max="45" />
+      </div>
+      <div class="cycle-field">
+        <label>average period length (days)</label>
+        <input type="number" id="periodLength" value="5" min="2" max="10" />
+      </div>
+      <button class="apply-btn" onclick="saveCycleSettings()">save cycle settings</button>
+    </div>
+  </div>
+
+  <div class="settings-section">
+    <div class="settings-title">customise moods</div>
+    <div class="mood-customize-wrap" id="moodCustomizeList"></div>
+    <div class="add-mood-row">
+      <button class="add-mood-emoji" id="emojiPickerBtn" onclick="cycleEmoji()">🌱</button>
+      <input class="add-mood-input" id="newMoodName" placeholder="add a mood…" maxlength="20" />
+      <button class="add-mood-btn" onclick="addCustomMood()">add</button>
+    </div>
+    <div class="mood-hint">tap a mood to toggle it on or off in your log</div>
+  </div>
+
+  <div class="settings-section">
+    <div class="settings-title">data</div>
+    <div class="setting-row" onclick="exportData()" style="cursor:pointer;">
+      <div>
+        <div class="setting-label">export data</div>
+        <div class="setting-desc">download as CSV</div>
+      </div>
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2v8M5 7l3 3 3-3M3 11v1a1 1 0 001 1h8a1 1 0 001-1v-1" stroke="var(--text3)" stroke-width="1.5" stroke-linecap="round"/></svg>
+    </div>
+    <div class="setting-row" onclick="if(confirm('Clear all data? This cannot be undone.'))clearData()" style="cursor:pointer;">
+      <div>
+        <div class="setting-label" style="color:var(--rose);">clear all data</div>
+        <div class="setting-desc">permanently delete all entries</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav">
+  <button class="nav-btn active" id="nav-log" onclick="goTo('log')">
+    <svg viewBox="0 0 24 24" fill="none"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4 12.5-12.5z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+    <div class="nav-dot"></div>
+    log
+  </button>
+  <button class="nav-btn" id="nav-trends" onclick="goTo('trends')">
+    <svg viewBox="0 0 24 24" fill="none"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <div class="nav-dot"></div>
+    trends
+  </button>
+  <button class="nav-btn" id="nav-settings" onclick="goTo('settings')">
+    <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" stroke="currentColor" stroke-width="1.5"/></svg>
+    <div class="nav-dot"></div>
+    settings
+  </button>
+</nav>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────────────
+const ALL_MOODS_DEFAULT = [
+  { key:'happy',     label:'Happy',     color:'#E8A0A0', bg:'#FBF0F0', emoji:'☀️' },
+  { key:'calm',      label:'Calm',      color:'#A8BFA8', bg:'#EFF5EF', emoji:'🌿' },
+  { key:'energized', label:'Energized', color:'#E0CC96', bg:'#FBF7EE', emoji:'⚡' },
+  { key:'anxious',   label:'Anxious',   color:'#C4B0D8', bg:'#F5F0FB', emoji:'🌀' },
+  { key:'sad',       label:'Sad',       color:'#96B8D8', bg:'#EEF5FB', emoji:'🌧️' },
+  { key:'irritable', label:'Irritable', color:'#E8A090', bg:'#FBF1EF', emoji:'🔥' },
+  { key:'focused',   label:'Focused',   color:'#C0A0B8', bg:'#F7F0F5', emoji:'🎯' },
+  { key:'lonely',    label:'Lonely',    color:'#B8A49A', bg:'#F7F3F1', emoji:'🌙' },
+  { key:'insecure',  label:'Insecure',  color:'#A0B0D8', bg:'#EEF1FB', emoji:'🫧' },
+];
+
+const CUSTOM_COLORS = [
+  ['#D8A0C8','#F8F0F6'], ['#A0C8B8','#EEF8F4'], ['#C8B8A0','#F6F2EE'],
+  ['#B8A0D8','#F4F0F8'], ['#C8A0A0','#F8F0F0'], ['#A0C8C8','#EEF8F8'],
+  ['#C8C8A0','#F8F8EE'], ['#B0B8A0','#F2F4EE'],
+];
+const EMOJI_OPTIONS = ['🌱','💫','🦋','🌊','🍃','🌸','⭐','🌈','🔮','🫶','🌺','🍀','💧','🫐','🪷','✨'];
+
+let emojiIdx = 0;
+let allMoods = [...ALL_MOODS_DEFAULT];
+let enabledMoodKeys = new Set(ALL_MOODS_DEFAULT.map(m => m.key));
+
+// Returns only the currently enabled moods in order
+function MOODS() {
+  return allMoods.filter(m => enabledMoodKeys.has(m.key));
+}
+
+let currentOffset = 0;
+let history = {};
+let cycleSettings = { lastPeriod: '', cycleLength: 28, periodLength: 5 };
+let reminderOn = false;
+let reminderTime = '20:00';
+let chartRange = 7;
+let overviewChartInst = null;
+let moodLineChartInst = null;
+let activeMoodFilter = null;
+
+function load() {
+  try {
+    history = JSON.parse(localStorage.getItem('bloom_history') || '{}');
+    const cs = localStorage.getItem('bloom_cycle');
+    if (cs) cycleSettings = JSON.parse(cs);
+    reminderOn = localStorage.getItem('bloom_reminder_on') === 'true';
+    reminderTime = localStorage.getItem('bloom_reminder_time') || '20:00';
+    const savedMoods = localStorage.getItem('bloom_all_moods');
+    if (savedMoods) allMoods = JSON.parse(savedMoods);
+    const savedEnabled = localStorage.getItem('bloom_enabled_moods');
+    if (savedEnabled) enabledMoodKeys = new Set(JSON.parse(savedEnabled));
+    else enabledMoodKeys = new Set(allMoods.map(m => m.key));
+  } catch(e) {}
+}
+function save() {
+  localStorage.setItem('bloom_history', JSON.stringify(history));
+}
+
+function dateKey(offset) {
+  const d = new Date(); d.setDate(d.getDate() + offset);
+  return d.toISOString().split('T')[0];
+}
+function parseKey(k) {
+  const [y,m,d] = k.split('-').map(Number);
+  return new Date(y, m-1, d);
+}
+function formatMain(offset) {
+  if (offset === 0) return 'today';
+  if (offset === -1) return 'yesterday';
+  const d = new Date(); d.setDate(d.getDate() + offset);
+  return d.toLocaleDateString('en-US', {weekday:'long'});
+}
+function formatSub(offset) {
+  const d = new Date(); d.setDate(d.getDate() + offset);
+  return d.toLocaleDateString('en-US', {month:'long', day:'numeric', year:'numeric'});
+}
+
+// ── CYCLE PHASE ───────────────────────────────────────────────────────────────
+function getCyclePhase(dateStr) {
+  if (!cycleSettings.lastPeriod) return null;
+  const date = parseKey(dateStr);
+  const last = parseKey(cycleSettings.lastPeriod);
+  const cl = parseInt(cycleSettings.cycleLength) || 28;
+  const pl = parseInt(cycleSettings.periodLength) || 5;
+  let diff = Math.floor((date - last) / 86400000);
+  diff = ((diff % cl) + cl) % cl;
+  if (diff < pl) return { phase: 'Menstrual', day: diff + 1 };
+  if (diff < Math.round(cl * 0.4)) return { phase: 'Follicular', day: diff + 1 };
+  if (diff < Math.round(cl * 0.55)) return { phase: 'Ovulatory', day: diff + 1 };
+  return { phase: 'Luteal', day: diff + 1 };
+}
+function phaseColor(phase) {
+  return { Menstrual:'var(--rose)', Follicular:'var(--sage)', Ovulatory:'var(--butter)', Luteal:'var(--lavender)' }[phase] || 'var(--text3)';
+}
+function phaseClass(phase) {
+  return { Menstrual:'phase-menstrual', Follicular:'phase-follicular', Ovulatory:'phase-ovulatory', Luteal:'phase-luteal' }[phase] || '';
+}
+
+// ── STREAK ────────────────────────────────────────────────────────────────────
+function calcStreak() {
+  let streak = 0;
+  let i = 0;
+  while (true) {
+    const k = dateKey(i);
+    if (history[k] && Object.values(history[k].moods||{}).some(v=>v>0)) { streak++; i--; }
+    else if (i === 0) { i--; } // allow today not yet saved
+    else break;
+  }
+  return streak;
+}
+
+// ── LOG PAGE ──────────────────────────────────────────────────────────────────
+function renderLog() {
+  const k = dateKey(currentOffset);
+  const entry = history[k] || {};
+  const saved = entry.moods || {};
+
+  document.getElementById('dateMain').textContent = formatMain(currentOffset);
+  document.getElementById('dateSub').textContent = formatSub(currentOffset);
+  document.getElementById('nextDay').disabled = currentOffset >= 0;
+  document.getElementById('notesArea').value = entry.notes || '';
+
+  const streak = calcStreak();
+  document.getElementById('streakNum').textContent = streak;
+
+  const phase = getCyclePhase(k);
+  const lbl = document.getElementById('cyclePhaseLabel');
+  if (phase) {
+    lbl.textContent = phase.phase + ' · day ' + phase.day;
+    lbl.style.color = phaseColor(phase.phase);
+    document.querySelector('.cycle-dot').style.background = phaseColor(phase.phase);
+  } else {
+    lbl.textContent = 'set up cycle →';
+    lbl.style.color = 'var(--text3)';
+  }
+
+  const grid = document.getElementById('moodsGrid');
+  grid.innerHTML = '';
+  MOODS().forEach(m => {
+    const val = saved[m.key] !== undefined ? saved[m.key] : 1;
+    const pct = (val - 1) / 4;
+    const card = document.createElement('div');
+    card.className = 'mood-card';
+    card.innerHTML = `
+      <div class="mood-icon-wrap" style="background:${m.bg}">${m.emoji}</div>
+      <div class="mood-info">
+        <div class="mood-name">${m.label}</div>
+        <div class="slider-row">
+          <input type="range" class="mood-slider" min="1" max="5" step="1" value="${val}"
+            style="background: linear-gradient(to right, ${m.color} 0%, ${m.color} ${pct*100}%, #EDE8E3 ${pct*100}%, #EDE8E3 100%);
+                   --thumb-color:${m.color};"
+            oninput="updateSlider(this,'${m.key}','${m.color}')"
+            data-key="${m.key}" />
+          <span class="mood-val" id="mval-${m.key}">${val}</span>
+        </div>
+      </div>`;
+    grid.appendChild(card);
+    const slider = card.querySelector('input[type=range]');
+    slider.style.setProperty('--thumb-color', m.color);
+    styleThumb(slider, m.color);
+  });
+
+  const btn = document.getElementById('saveBtn');
+  btn.textContent = 'save entry';
+  btn.classList.remove('saved');
+}
+
+function styleThumb(slider, color) {
+  let style = document.getElementById('thumb-style-' + slider.dataset.key);
+  if (!style) {
+    style = document.createElement('style');
+    style.id = 'thumb-style-' + slider.dataset.key;
+    document.head.appendChild(style);
+  }
+  style.textContent = `input[data-key="${slider.dataset.key}"]::-webkit-slider-thumb { background: ${color} !important; }`;
+}
+
+function updateSlider(el, key, color) {
+  const v = parseInt(el.value);
+  const pct = (v - 1) / 4;
+  el.style.background = `linear-gradient(to right, ${color} 0%, ${color} ${pct*100}%, #EDE8E3 ${pct*100}%, #EDE8E3 100%)`;
+  document.getElementById('mval-' + key).textContent = v;
+}
+
+function saveEntry() {
+  const k = dateKey(currentOffset);
+  const moods = {};
+  MOODS().forEach(m => {
+    const el = document.querySelector(`input[data-key="${m.key}"]`);
+    if (el) moods[m.key] = parseInt(el.value);
+  });
+  history[k] = { moods, notes: document.getElementById('notesArea').value };
+  save();
+  syncEntryToSheets(k, history[k]);
+  const btn = document.getElementById('saveBtn');
+  btn.textContent = 'saved ✓';
+  btn.classList.add('saved');
+  setTimeout(() => { btn.textContent = 'save entry'; btn.classList.remove('saved'); }, 2000);
+  showToast('entry saved 🌸');
+  document.getElementById('streakNum').textContent = calcStreak();
+}
+
+function changeDay(dir) {
+  if (dir > 0 && currentOffset >= 0) return;
+  currentOffset += dir;
+  renderLog();
+}
+
+// ── TRENDS PAGE ───────────────────────────────────────────────────────────────
+function renderTrends() {
+  const days = [];
+  for (let i = chartRange - 1; i >= 0; i--) {
+    const k = dateKey(-i);
+    const d = new Date(); d.setDate(d.getDate() - i);
+    days.push({ key: k, label: d.toLocaleDateString('en-US',{month:'short',day:'numeric'}), short: d.toLocaleDateString('en-US',{weekday:'short'}) });
+  }
+
+  // overview: avg mood per day
+  const avgData = days.map(d => {
+    const e = history[d.key];
+    if (!e || !e.moods) return null;
+    const vals = Object.values(e.moods).filter(v => v != null);
+    return vals.length ? +(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(1) : null;
+  });
+
+  const labels = days.map(d => d.short);
+
+  if (overviewChartInst) overviewChartInst.destroy();
+  overviewChartInst = new Chart(document.getElementById('overviewChart'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        data: avgData,
+        backgroundColor: avgData.map(v => v === null ? 'transparent' : '#E8C4C4'),
+        borderRadius: 6,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.raw !== null ? 'avg: ' + c.raw : 'no data' } } },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 10, family: 'DM Sans' }, color: '#B8A49A' } },
+        y: { min: 1, max: 5, grid: { color: 'rgba(180,150,120,0.1)' }, ticks: { font: { size: 10 }, color: '#B8A49A', stepSize: 1 } }
+      }
+    }
+  });
+
+  // mood legend
+  const legend = document.getElementById('moodLegend');
+  legend.innerHTML = '';
+  MOODS().forEach(m => {
+    const btn = document.createElement('button');
+    btn.style.cssText = `padding:4px 10px;border-radius:20px;border:1px solid ${m.color};background:${activeMoodFilter===m.key?m.color:m.bg};color:${activeMoodFilter===m.key?'white':m.color};font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.15s;`;
+    btn.textContent = m.label;
+    btn.onclick = () => { activeMoodFilter = activeMoodFilter === m.key ? null : m.key; renderTrends(); };
+    legend.appendChild(btn);
+  });
+
+  // line chart
+  const filteredMoods = activeMoodFilter ? MOODS().filter(m => m.key === activeMoodFilter) : MOODS();
+  const datasets = filteredMoods.map(m => ({
+    label: m.label,
+    data: days.map(d => history[d.key]?.moods?.[m.key] ?? null),
+    borderColor: m.color,
+    backgroundColor: m.color + '22',
+    borderWidth: 1.5,
+    pointRadius: 3,
+    pointBackgroundColor: m.color,
+    tension: 0.4,
+    spanGaps: false,
+  }));
+
+  if (moodLineChartInst) moodLineChartInst.destroy();
+  moodLineChartInst = new Chart(document.getElementById('moodLineChart'), {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: filteredMoods.length > 1, labels: { font: { size: 10, family: 'DM Sans' }, boxWidth: 12, color: '#8C7468' } },
+        tooltip: { mode: 'index', intersect: false }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 10 }, color: '#B8A49A' } },
+        y: { min: 1, max: 5, grid: { color: 'rgba(180,150,120,0.1)' }, ticks: { font: { size: 10 }, color: '#B8A49A', stepSize: 1 } }
+      }
+    }
+  });
+
+  // cycle correlation
+  const phases = ['Menstrual','Follicular','Ovulatory','Luteal'];
+  const phaseMoods = {};
+  phases.forEach(p => phaseMoods[p] = {});
+  Object.entries(history).forEach(([k, e]) => {
+    if (!e || !e.moods) return;
+    const p = getCyclePhase(k);
+    if (!p) return;
+    MOODS().forEach(m => {
+      if (!phaseMoods[p.phase][m.key]) phaseMoods[p.phase][m.key] = [];
+      if (e.moods[m.key] > 0) phaseMoods[p.phase][m.key].push(e.moods[m.key]);
+    });
+  });
+
+  const grid = document.getElementById('correlationGrid');
+  grid.innerHTML = '';
+  phases.forEach(phase => {
+    const card = document.createElement('div');
+    card.className = `corr-card ${phaseClass(phase)}`;
+    const top = MOODS()
+      .map(m => ({ label: m.label, avg: phaseMoods[phase][m.key]?.length ? phaseMoods[phase][m.key].reduce((a,b)=>a+b,0)/phaseMoods[phase][m.key].length : 0 }))
+      .filter(x => x.avg > 0)
+      .sort((a,b) => b.avg - a.avg)
+      .slice(0, 2);
+    card.innerHTML = `<div class="corr-phase">${phase}</div><div class="corr-moods">${top.length ? top.map(x=>`${x.label} ${x.avg.toFixed(1)}`).join(' · ') : 'no data yet'}</div>`;
+    grid.appendChild(card);
+  });
+}
+
+function setRange(r, btn) {
+  chartRange = r;
+  document.querySelectorAll('.week-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTrends();
+}
+
+// ── MOOD CUSTOMIZER ───────────────────────────────────────────────────────────
+function saveMoodPrefs() {
+  localStorage.setItem('bloom_all_moods', JSON.stringify(allMoods));
+  localStorage.setItem('bloom_enabled_moods', JSON.stringify([...enabledMoodKeys]));
+}
+
+function renderMoodCustomizer() {
+  const list = document.getElementById('moodCustomizeList');
+  list.innerHTML = '';
+  allMoods.forEach((m, idx) => {
+    const enabled = enabledMoodKeys.has(m.key);
+    const isCustom = !ALL_MOODS_DEFAULT.find(d => d.key === m.key);
+    const row = document.createElement('div');
+    row.className = 'mood-customize-item' + (enabled ? '' : ' inactive');
+    row.innerHTML = `
+      <span class="mood-item-emoji">${m.emoji}</span>
+      <span class="mood-item-name">${m.label}</span>
+      ${isCustom ? '<span class="mood-item-custom-tag">custom</span>' : ''}
+      <div class="mood-check ${enabled ? 'checked' : ''}" onclick="toggleMood('${m.key}')">${enabled ? '✓' : ''}</div>
+      ${isCustom ? `<button class="mood-delete" onclick="deleteCustomMood('${m.key}')">✕</button>` : ''}
+    `;
+    list.appendChild(row);
+  });
+}
+
+function toggleMood(key) {
+  if (enabledMoodKeys.has(key)) {
+    if (enabledMoodKeys.size <= 1) { showToast('keep at least one mood 🌸'); return; }
+    enabledMoodKeys.delete(key);
+  } else {
+    enabledMoodKeys.add(key);
+  }
+  saveMoodPrefs();
+  renderMoodCustomizer();
+  renderLog();
+}
+
+function cycleEmoji() {
+  emojiIdx = (emojiIdx + 1) % EMOJI_OPTIONS.length;
+  document.getElementById('emojiPickerBtn').textContent = EMOJI_OPTIONS[emojiIdx];
+}
+
+function addCustomMood() {
+  const nameEl = document.getElementById('newMoodName');
+  const name = nameEl.value.trim();
+  if (!name) { showToast('enter a mood name first'); return; }
+  const key = 'custom_' + name.toLowerCase().replace(/\s+/g,'_') + '_' + Date.now();
+  const emoji = EMOJI_OPTIONS[emojiIdx];
+  const [color, bg] = CUSTOM_COLORS[allMoods.length % CUSTOM_COLORS.length];
+  allMoods.push({ key, label: name.charAt(0).toUpperCase() + name.slice(1), color, bg, emoji });
+  enabledMoodKeys.add(key);
+  saveMoodPrefs();
+  nameEl.value = '';
+  emojiIdx = 0;
+  document.getElementById('emojiPickerBtn').textContent = EMOJI_OPTIONS[0];
+  renderMoodCustomizer();
+  renderLog();
+  showToast(`"${name}" added 🌱`);
+}
+
+function deleteCustomMood(key) {
+  allMoods = allMoods.filter(m => m.key !== key);
+  enabledMoodKeys.delete(key);
+  saveMoodPrefs();
+  renderMoodCustomizer();
+  renderLog();
+  showToast('mood removed');
+}
+
+// ── GOOGLE SHEETS SYNC ────────────────────────────────────────────────────────
+const GOOG_CLIENT_ID = '127214700154-9r9jvak86qbc39eodevpsajp2flgi8i9.apps.googleusercontent.com';
+const GOOG_SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file';
+const SHEET_TITLE = 'bloom mood tracker';
+const TAB_NAME = 'entries';
+
+let gToken = null;       // access token
+let gSheetId = null;     // spreadsheet ID
+let gUserName = '';
+
+function sheetsLoad() {
+  try {
+    gToken = localStorage.getItem('bloom_gtoken') || null;
+    gSheetId = localStorage.getItem('bloom_gsheet_id') || null;
+    gUserName = localStorage.getItem('bloom_guser') || '';
+  } catch(e) {}
+}
+
+function sheetsSave() {
+  localStorage.setItem('bloom_gtoken', gToken || '');
+  localStorage.setItem('bloom_gsheet_id', gSheetId || '');
+  localStorage.setItem('bloom_guser', gUserName || '');
+}
+
+function sheetsSignIn() {
+  const params = new URLSearchParams({
+    client_id: GOOG_CLIENT_ID,
+    redirect_uri: window.location.href.split('?')[0].split('#')[0],
+    response_type: 'token',
+    scope: GOOG_SCOPES,
+    include_granted_scopes: 'true',
+    prompt: 'consent',
+  });
+  window.location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + params;
+}
+
+function sheetsSignOut() {
+  gToken = null; gSheetId = null; gUserName = '';
+  sheetsSave();
+  updateSyncUI();
+  showToast('disconnected from Google');
+}
+
+async function sheetsHandleRedirect() {
+  const hash = window.location.hash;
+  if (!hash.includes('access_token')) return;
+  const params = new URLSearchParams(hash.replace('#',''));
+  const token = params.get('access_token');
+  if (!token) return;
+  gToken = token;
+  window.history.replaceState(null, '', window.location.pathname);
+  setSyncStatus('busy', 'signing in…');
+  try {
+    const me = await gFetch('https://www.googleapis.com/oauth2/v3/userinfo');
+    gUserName = me.name || me.email || 'connected';
+    await ensureSheet();
+    sheetsSave();
+    updateSyncUI();
+    setSyncStatus('ok', 'connected · syncing…');
+    await syncAllToSheets();
+  } catch(e) {
+    setSyncStatus('err', 'sign-in failed: ' + e.message);
+  }
+}
+
+async function gFetch(url, opts = {}) {
+  const res = await fetch(url, {
+    ...opts,
+    headers: { 'Authorization': 'Bearer ' + gToken, 'Content-Type': 'application/json', ...(opts.headers||{}) }
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(()=>({}));
+    throw new Error(err?.error?.message || res.statusText);
+  }
+  return res.json();
+}
+
+async function ensureSheet() {
+  // find existing sheet
+  if (gSheetId) {
+    try {
+      await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${gSheetId}?fields=spreadsheetId`);
+      return; // exists
+    } catch(e) { gSheetId = null; }
+  }
+  // search Drive for existing
+  const q = encodeURIComponent(`name='${SHEET_TITLE}' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false`);
+  const found = await gFetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)&pageSize=1`);
+  if (found.files && found.files.length > 0) {
+    gSheetId = found.files[0].id;
+    await ensureHeaderRow();
+    return;
+  }
+  // create new
+  const created = await gFetch('https://sheets.googleapis.com/v4/spreadsheets', {
+    method: 'POST',
+    body: JSON.stringify({
+      properties: { title: SHEET_TITLE },
+      sheets: [{ properties: { title: TAB_NAME } }]
+    })
+  });
+  gSheetId = created.spreadsheetId;
+  await ensureHeaderRow();
+}
+
+function buildHeader() {
+  return ['Date', 'Cycle Phase', ...allMoods.map(m => m.label), 'Notes', 'Synced At'];
+}
+
+async function ensureHeaderRow() {
+  const res = await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${gSheetId}/values/${TAB_NAME}!A1:Z1`);
+  const existing = res.values?.[0]?.[0];
+  if (existing === 'Date') return;
+  await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${gSheetId}/values/${TAB_NAME}!A1:Z1?valueInputOption=RAW`, {
+    method: 'PUT',
+    body: JSON.stringify({ values: [buildHeader()] })
+  });
+}
+
+function entryToRow(dateKey, entry) {
+  const phase = getCyclePhase(dateKey);
+  return [
+    dateKey,
+    phase ? phase.phase : '',
+    ...allMoods.map(m => entry.moods?.[m.key] ?? ''),
+    (entry.notes || '').replace(/\n/g, ' '),
+    new Date().toISOString()
+  ];
+}
+
+async function syncEntryToSheets(dateKey, entry) {
+  if (!gToken || !gSheetId) return;
+  try {
+    setSyncStatus('busy', 'syncing…');
+    // Read existing rows to find if date already there
+    const res = await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${gSheetId}/values/${TAB_NAME}!A:A`);
+    const rows = res.values || [];
+    const rowIdx = rows.findIndex(r => r[0] === dateKey);
+    const row = entryToRow(dateKey, entry);
+    if (rowIdx > 0) {
+      // update existing row
+      await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${gSheetId}/values/${TAB_NAME}!A${rowIdx+1}:Z${rowIdx+1}?valueInputOption=RAW`, {
+        method: 'PUT', body: JSON.stringify({ values: [row] })
+      });
+    } else {
+      // append new row
+      await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${gSheetId}/values/${TAB_NAME}!A:Z:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, {
+        method: 'POST', body: JSON.stringify({ values: [row] })
+      });
+    }
+    setSyncStatus('ok', 'synced · ' + new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}));
+  } catch(e) {
+    if (e.message.includes('401') || e.message.includes('invalid_token')) {
+      gToken = null; sheetsSave(); updateSyncUI();
+      setSyncStatus('err', 'session expired — please sign in again');
+    } else {
+      setSyncStatus('err', 'sync failed: ' + e.message);
+    }
+  }
+}
+
+async function syncAllToSheets() {
+  if (!gToken || !gSheetId) return;
+  setSyncStatus('busy', 'syncing all entries…');
+  try {
+    await ensureHeaderRow();
+    const entries = Object.entries(history).sort(([a],[b]) => a.localeCompare(b));
+    if (!entries.length) { setSyncStatus('ok', 'nothing to sync yet'); return; }
+    const rows = entries.map(([k, e]) => entryToRow(k, e));
+    // clear existing data rows (keep header), then write all
+    const res = await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${gSheetId}/values/${TAB_NAME}!A:Z`);
+    const existing = res.values || [];
+    if (existing.length > 1) {
+      await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${gSheetId}/values/${TAB_NAME}!A2:Z?valueInputOption=RAW`, {
+        method: 'PUT', body: JSON.stringify({ values: rows })
+      });
+    } else {
+      await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${gSheetId}/values/${TAB_NAME}!A:Z:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, {
+        method: 'POST', body: JSON.stringify({ values: rows })
+      });
+    }
+    setSyncStatus('ok', `${rows.length} entries synced · ${new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`);
+  } catch(e) {
+    setSyncStatus('err', 'sync failed: ' + e.message);
+  }
+}
+
+async function syncFromSheets() {
+  if (!gToken || !gSheetId) return;
+  setSyncStatus('busy', 'pulling from sheet…');
+  try {
+    const res = await gFetch(`https://sheets.googleapis.com/v4/spreadsheets/${gSheetId}/values/${TAB_NAME}!A:Z`);
+    const rows = res.values || [];
+    if (rows.length < 2) { setSyncStatus('ok', 'no data in sheet yet'); return; }
+    const header = rows[0];
+    const dateIdx = 0, phaseIdx = 1, notesIdx = header.length - 2;
+    const moodLabels = header.slice(2, notesIdx);
+    let imported = 0;
+    rows.slice(1).forEach(row => {
+      const dateKey = row[0];
+      if (!dateKey || !/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return;
+      const moods = {};
+      moodLabels.forEach((label, i) => {
+        const m = allMoods.find(x => x.label === label);
+        if (m && row[2 + i]) moods[m.key] = parseInt(row[2 + i]) || 1;
+      });
+      if (!history[dateKey]) {
+        history[dateKey] = { moods, notes: row[notesIdx] || '' };
+        imported++;
+      }
+    });
+    save();
+    renderLog();
+    setSyncStatus('ok', `pulled ${imported} new entries`);
+    if (imported) showToast(`imported ${imported} entries 📥`);
+    else showToast('already up to date');
+  } catch(e) {
+    setSyncStatus('err', 'pull failed: ' + e.message);
+  }
+}
+
+function setSyncStatus(state, text) {
+  const bar = document.getElementById('syncStatusBar');
+  const dot = document.getElementById('syncDot');
+  const txt = document.getElementById('syncStatusText');
+  if (!bar) return;
+  bar.style.display = 'flex';
+  dot.className = 'sync-dot ' + state;
+  txt.textContent = text;
+}
+
+function updateSyncUI() {
+  const signInRow = document.getElementById('syncSignInRow');
+  const userRow = document.getElementById('syncUserRow');
+  const actionsRow = document.getElementById('syncActionsRow');
+  const pullRow = document.getElementById('syncPullRow');
+  const statusBar = document.getElementById('syncStatusBar');
+  if (!signInRow) return;
+  const connected = !!gToken;
+  signInRow.style.display = connected ? 'none' : 'flex';
+  userRow.style.display = connected ? 'flex' : 'none';
+  actionsRow.style.display = connected ? 'flex' : 'none';
+  pullRow.style.display = connected ? 'flex' : 'none';
+  if (!connected) { statusBar.style.display = 'none'; return; }
+  document.getElementById('syncUserName').textContent = gUserName || 'connected';
+  document.getElementById('syncSheetDesc').textContent = gSheetId ? 'bloom mood tracker · ' + gSheetId.slice(0,8) + '…' : 'setting up…';
+}
+
+// ── SETTINGS ──────────────────────────────────────────────────────────────────
+function renderSettings() {
+  document.getElementById('lastPeriod').value = cycleSettings.lastPeriod || '';
+  document.getElementById('cycleLength').value = cycleSettings.cycleLength || 28;
+  document.getElementById('periodLength').value = cycleSettings.periodLength || 5;
+  const tog = document.getElementById('reminderToggle');
+  tog.className = 'toggle' + (reminderOn ? ' on' : '');
+  document.getElementById('reminderTimeRow').style.display = reminderOn ? 'flex' : 'none';
+  document.getElementById('reminderTime').value = reminderTime;
+  updateReminderStatus();
+  renderMoodCustomizer();
+  updateSyncUI();
+}
+
+function saveCycleSettings() {
+  cycleSettings.lastPeriod = document.getElementById('lastPeriod').value;
+  cycleSettings.cycleLength = parseInt(document.getElementById('cycleLength').value);
+  cycleSettings.periodLength = parseInt(document.getElementById('periodLength').value);
+  localStorage.setItem('bloom_cycle', JSON.stringify(cycleSettings));
+  showToast('cycle settings saved 🌙');
+  renderLog();
+}
+
+function toggleReminder() {
+  reminderOn = !reminderOn;
+  localStorage.setItem('bloom_reminder_on', reminderOn);
+  const tog = document.getElementById('reminderToggle');
+  tog.className = 'toggle' + (reminderOn ? ' on' : '');
+  document.getElementById('reminderTimeRow').style.display = reminderOn ? 'flex' : 'none';
+  if (reminderOn) requestNotificationPermission();
+  updateReminderStatus();
+}
+
+function saveReminder() {
+  reminderTime = document.getElementById('reminderTime').value;
+  localStorage.setItem('bloom_reminder_time', reminderTime);
+  showToast('reminder set for ' + reminderTime + ' 🔔');
+  updateReminderStatus();
+  scheduleReminder();
+}
+
+function updateReminderStatus() {
+  const el = document.getElementById('reminderStatus');
+  if (!reminderOn) { el.textContent = ''; return; }
+  el.textContent = `reminder set for ${reminderTime} · notifications must be allowed in your browser`;
+}
+
+function requestNotificationPermission() {
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission().then(p => {
+      if (p === 'granted') showToast('notifications enabled 🔔');
+    });
+  }
+}
+
+function scheduleReminder() {
+  if (!reminderOn || !('Notification' in window) || Notification.permission !== 'granted') return;
+  const [h, m] = reminderTime.split(':').map(Number);
+  const now = new Date();
+  const next = new Date(); next.setHours(h, m, 0, 0);
+  if (next <= now) next.setDate(next.getDate() + 1);
+  const ms = next - now;
+  setTimeout(() => {
+    new Notification('bloom 🌸', { body: 'Time to log how you\'re feeling today' });
+  }, ms);
+}
+
+function exportData() {
+  const rows = [['Date','Cycle Phase', ...MOODS().map(m=>m.label), 'Notes']];
+  Object.entries(history).sort().forEach(([k, e]) => {
+    const phase = getCyclePhase(k);
+    rows.push([k, phase ? phase.phase : '', ...MOODS().map(m => e.moods?.[m.key] ?? ''), (e.notes||'').replace(/,/g,' ')]);
+  });
+  const csv = rows.map(r => r.join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = 'bloom-mood-data.csv';
+  a.click();
+  showToast('data exported 📊');
+}
+
+function clearData() {
+  history = {};
+  save();
+  showToast('data cleared');
+  renderLog();
+}
+
+// ── NAV ───────────────────────────────────────────────────────────────────────
+function goTo(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.getElementById('nav-' + page).classList.add('active');
+  if (page === 'trends') renderTrends();
+  if (page === 'settings') renderSettings();
+}
+
+// ── TOAST ─────────────────────────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+load();
+sheetsLoad();
+const now = new Date();
+document.getElementById('topDate').textContent = now.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
+renderLog();
+if (reminderOn) scheduleReminder();
+sheetsHandleRedirect();
+</script>
+</body>
+</html>
