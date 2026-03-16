@@ -6,6 +6,7 @@
 <title>bloom — mood tracker</title>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
   :root {
     --bg: #FDF8F4;
@@ -1083,44 +1084,44 @@ function sheetsSave() {
 }
 
 function sheetsSignIn() {
-  const params = new URLSearchParams({
+  if (typeof google === 'undefined') {
+    setSyncStatus('err', 'Google library not loaded — check your connection');
+    return;
+  }
+  const client = google.accounts.oauth2.initTokenClient({
     client_id: GOOG_CLIENT_ID,
-    redirect_uri: window.location.href.split('?')[0].split('#')[0],
-    response_type: 'token',
     scope: GOOG_SCOPES,
-    include_granted_scopes: 'true',
-    prompt: 'consent',
+    callback: async (resp) => {
+      if (resp.error) {
+        setSyncStatus('err', 'sign-in failed: ' + resp.error);
+        return;
+      }
+      gToken = resp.access_token;
+      setSyncStatus('busy', 'signing in…');
+      try {
+        const me = await gFetch('https://www.googleapis.com/oauth2/v3/userinfo');
+        gUserName = me.name || me.email || 'connected';
+        await ensureSheet();
+        sheetsSave();
+        updateSyncUI();
+        setSyncStatus('ok', 'connected · syncing…');
+        await syncAllToSheets();
+      } catch(e) {
+        setSyncStatus('err', 'setup failed: ' + e.message);
+      }
+    },
   });
-  window.location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + params;
+  client.requestAccessToken();
 }
 
 function sheetsSignOut() {
+  if (gToken && typeof google !== 'undefined') {
+    google.accounts.oauth2.revoke(gToken, () => {});
+  }
   gToken = null; gSheetId = null; gUserName = '';
   sheetsSave();
   updateSyncUI();
   showToast('disconnected from Google');
-}
-
-async function sheetsHandleRedirect() {
-  const hash = window.location.hash;
-  if (!hash.includes('access_token')) return;
-  const params = new URLSearchParams(hash.replace('#',''));
-  const token = params.get('access_token');
-  if (!token) return;
-  gToken = token;
-  window.history.replaceState(null, '', window.location.pathname);
-  setSyncStatus('busy', 'signing in…');
-  try {
-    const me = await gFetch('https://www.googleapis.com/oauth2/v3/userinfo');
-    gUserName = me.name || me.email || 'connected';
-    await ensureSheet();
-    sheetsSave();
-    updateSyncUI();
-    setSyncStatus('ok', 'connected · syncing…');
-    await syncAllToSheets();
-  } catch(e) {
-    setSyncStatus('err', 'sign-in failed: ' + e.message);
-  }
 }
 
 async function gFetch(url, opts = {}) {
@@ -1419,7 +1420,6 @@ const now = new Date();
 document.getElementById('topDate').textContent = now.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
 renderLog();
 if (reminderOn) scheduleReminder();
-sheetsHandleRedirect();
 </script>
 </body>
 </html>
