@@ -549,6 +549,14 @@
         </div>
         <button class="sync-btn primary" onclick="sheetsSignIn()">sign in</button>
       </div>
+      <div class="sync-row" id="clientIdRow" style="display:none; flex-direction:column; align-items:stretch; gap:8px;">
+        <div style="font-size:12px;color:var(--text2);">paste your Google OAuth Client ID</div>
+        <div style="display:flex;gap:8px;">
+          <input id="clientIdInput" placeholder="xxxx.apps.googleusercontent.com"
+            style="flex:1;padding:9px 12px;border:1px solid var(--border2);border-radius:var(--radius-sm);font-family:'DM Sans',sans-serif;font-size:12px;color:var(--text);outline:none;background:white;" />
+          <button class="sync-btn primary" onclick="saveClientId()">save</button>
+        </div>
+      </div>
       <div class="sync-row" id="syncUserRow" style="display:none">
         <div class="sync-icon signed-in">✓</div>
         <div class="sync-info">
@@ -1060,7 +1068,8 @@ function deleteCustomMood(key) {
 }
 
 // ── GOOGLE SHEETS SYNC ────────────────────────────────────────────────────────
-const GOOG_CLIENT_ID = '127214700154-9r9jvak86qbc39eodevpsajp2flgi8i9.apps.googleusercontent.com';
+const GOOG_CLIENT_ID_KEY = 'bloom_gclient_id';
+function getClientId() { return localStorage.getItem(GOOG_CLIENT_ID_KEY) || ''; }
 const GOOG_SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file';
 const SHEET_TITLE = 'bloom mood tracker';
 const TAB_NAME = 'entries';
@@ -1088,8 +1097,14 @@ function sheetsSignIn() {
     setSyncStatus('err', 'Google library not loaded — check your connection');
     return;
   }
+  const clientId = getClientId();
+  if (!clientId) {
+    setSyncStatus('err', 'enter your Client ID below first');
+    document.getElementById('clientIdRow').style.display = 'flex';
+    return;
+  }
   const client = google.accounts.oauth2.initTokenClient({
-    client_id: GOOG_CLIENT_ID,
+    client_id: clientId,
     scope: GOOG_SCOPES,
     callback: async (resp) => {
       if (resp.error) {
@@ -1290,15 +1305,26 @@ function setSyncStatus(state, text) {
   txt.textContent = text;
 }
 
+function saveClientId() {
+  const val = document.getElementById('clientIdInput').value.trim();
+  if (!val) { showToast('paste your Client ID first'); return; }
+  localStorage.setItem(GOOG_CLIENT_ID_KEY, val);
+  document.getElementById('clientIdRow').style.display = 'none';
+  showToast('client ID saved 🔑');
+}
+
 function updateSyncUI() {
   const signInRow = document.getElementById('syncSignInRow');
+  const clientIdRow = document.getElementById('clientIdRow');
   const userRow = document.getElementById('syncUserRow');
   const actionsRow = document.getElementById('syncActionsRow');
   const pullRow = document.getElementById('syncPullRow');
   const statusBar = document.getElementById('syncStatusBar');
   if (!signInRow) return;
   const connected = !!gToken;
+  const hasClientId = !!getClientId();
   signInRow.style.display = connected ? 'none' : 'flex';
+  clientIdRow.style.display = (!connected && !hasClientId) ? 'flex' : 'none';
   userRow.style.display = connected ? 'flex' : 'none';
   actionsRow.style.display = connected ? 'flex' : 'none';
   pullRow.style.display = connected ? 'flex' : 'none';
