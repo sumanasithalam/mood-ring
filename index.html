@@ -238,6 +238,39 @@
   .chart-subtitle { font-size: 11px; color: var(--text3); font-weight: 400; margin-left: 6px; }
   .chart-wrap { position: relative; height: 160px; }
 
+  /* PHASE CORRELATION */
+  .phase-block {
+    margin-bottom: 14px;
+  }
+  .phase-block:last-child { margin-bottom: 0; }
+  .phase-header {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+  }
+  .phase-pill {
+    font-size: 11px; font-weight: 500; padding: 3px 10px;
+    border-radius: 20px; flex-shrink: 0;
+  }
+  .phase-day-count { font-size: 11px; color: var(--text3); }
+  .phase-mood-row {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 5px;
+  }
+  .phase-mood-name { font-size: 12px; color: var(--text2); min-width: 72px; }
+  .phase-bar-wrap { flex: 1; height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden; }
+  .phase-bar { height: 100%; border-radius: 3px; transition: width 0.4s ease; }
+  .phase-mood-val { font-size: 11px; color: var(--text3); min-width: 20px; text-align: right; }
+  .phase-no-data { font-size: 12px; color: var(--text3); font-style: italic; padding: 4px 0; }
+
+  /* MOOD BREAKDOWN BARS */
+  .breakdown-row {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
+  }
+  .breakdown-row:last-child { margin-bottom: 0; }
+  .breakdown-emoji { font-size: 14px; width: 22px; text-align: center; flex-shrink: 0; }
+  .breakdown-name { font-size: 12px; color: var(--text2); min-width: 68px; }
+  .breakdown-bar-wrap { flex: 1; height: 8px; background: var(--surface2); border-radius: 4px; overflow: hidden; }
+  .breakdown-bar { height: 100%; border-radius: 4px; }
+  .breakdown-val { font-size: 12px; font-weight: 500; color: var(--text); min-width: 24px; text-align: right; }
+
   /* CYCLE CORRELATION */
   .correlation-grid {
     display: grid; grid-template-columns: 1fr 1fr;
@@ -290,14 +323,16 @@
     border: 1px solid rgba(196,176,216,0.3);
     border-radius: var(--radius-sm);
     padding: 16px;
+    overflow: hidden;
   }
   .cycle-field { margin-bottom: 14px; }
   .cycle-field label { font-size: 12px; color: var(--text2); display: block; margin-bottom: 6px; }
   .cycle-field input {
-    width: 100%; padding: 10px 12px;
+    width: 100%; max-width: 100%; padding: 10px 12px;
     border: 1px solid var(--border2); border-radius: var(--radius-sm);
     background: white; font-family: 'DM Sans', sans-serif;
     font-size: 14px; color: var(--text); outline: none;
+    box-sizing: border-box;
   }
   .cycle-field input:focus { border-color: var(--lavender); }
   .apply-btn {
@@ -405,10 +440,16 @@
     display: flex; align-items: center; gap: 12px;
     padding: 11px 14px;
     border-bottom: 1px solid rgba(232,160,160,0.12);
-    transition: background 0.12s;
+    transition: background 0.12s, opacity 0.15s;
+    cursor: grab;
+    user-select: none;
   }
+  .mood-customize-item:active { cursor: grabbing; }
   .mood-customize-item:last-child { border-bottom: none; }
   .mood-customize-item.inactive { opacity: 0.45; }
+  .mood-customize-item.drag-over { background: rgba(232,160,160,0.12); }
+  .mood-customize-item.dragging { opacity: 0.3; }
+  .drag-handle { color: var(--text3); font-size: 14px; cursor: grab; flex-shrink: 0; letter-spacing: -2px; }
   .mood-item-emoji { font-size: 16px; width: 24px; text-align: center; flex-shrink: 0; }
   .mood-item-name { font-size: 13px; color: var(--text); flex: 1; }
   .mood-item-custom-tag {
@@ -508,7 +549,6 @@
 <!-- PAGE: TRENDS -->
 <div class="page" id="page-trends">
   <div style="font-family:'Fraunces',serif;font-size:24px;font-weight:300;margin-bottom:4px;">your trends</div>
-  <div style="font-size:12px;color:var(--text3);margin-bottom:18px;">mood patterns over time</div>
 
   <div class="week-tabs" id="weekTabs">
     <button class="week-tab active" onclick="setRange(7,this)">7 days</button>
@@ -516,20 +556,23 @@
     <button class="week-tab" onclick="setRange(30,this)">30 days</button>
   </div>
 
+  <!-- CYCLE CORRELATION — primary -->
   <div class="chart-card">
-    <div class="chart-title">mood overview <span class="chart-subtitle">daily averages</span></div>
-    <div class="chart-wrap"><canvas id="overviewChart"></canvas></div>
+    <div class="chart-title">by cycle phase</div>
+    <div id="phaseCorrelation"></div>
   </div>
 
+  <!-- MOOD OVER TIME -->
   <div class="chart-card">
-    <div class="chart-title">by feeling <span class="chart-subtitle">select to highlight</span></div>
-    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;" id="moodLegend"></div>
+    <div class="chart-title">mood over time <span class="chart-subtitle">tap to filter, select multiple</span></div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;" id="moodPills"></div>
     <div class="chart-wrap"><canvas id="moodLineChart"></canvas></div>
   </div>
 
-  <div class="chart-card" id="cycleCorrelationCard">
-    <div class="chart-title">cycle correlation <span class="chart-subtitle">avg mood by phase</span></div>
-    <div class="correlation-grid" id="correlationGrid"></div>
+  <!-- INDIVIDUAL MOOD BREAKDOWN -->
+  <div class="chart-card">
+    <div class="chart-title">mood breakdown <span class="chart-subtitle">avg over period</span></div>
+    <div id="moodBreakdown"></div>
   </div>
 </div>
 
@@ -695,10 +738,11 @@ const EMOJI_OPTIONS = ['🌱','💫','🦋','🌊','🍃','🌸','⭐','🌈','�
 let emojiIdx = 0;
 let allMoods = [...ALL_MOODS_DEFAULT];
 let enabledMoodKeys = new Set(ALL_MOODS_DEFAULT.map(m => m.key));
+let deletedMoodKeys = new Set();
 
-// Returns only the currently enabled moods in order
+// Returns only active (enabled, not deleted) moods in order
 function MOODS() {
-  return allMoods.filter(m => enabledMoodKeys.has(m.key));
+  return allMoods.filter(m => enabledMoodKeys.has(m.key) && !deletedMoodKeys.has(m.key));
 }
 
 let currentOffset = 0;
@@ -707,9 +751,8 @@ let cycleSettings = { lastPeriod: '', cycleLength: 28, periodLength: 5 };
 let reminderOn = false;
 let reminderTime = '20:00';
 let chartRange = 7;
-let overviewChartInst = null;
 let moodLineChartInst = null;
-let activeMoodFilter = null;
+let activeMoodFilters = new Set();
 
 function load() {
   try {
@@ -723,6 +766,8 @@ function load() {
     const savedEnabled = localStorage.getItem('bloom_enabled_moods');
     if (savedEnabled) enabledMoodKeys = new Set(JSON.parse(savedEnabled));
     else enabledMoodKeys = new Set(allMoods.map(m => m.key));
+    const savedDeleted = localStorage.getItem('bloom_deleted_moods');
+    if (savedDeleted) deletedMoodKeys = new Set(JSON.parse(savedDeleted));
   } catch(e) {}
 }
 function save() {
@@ -885,61 +930,89 @@ function renderTrends() {
   for (let i = chartRange - 1; i >= 0; i--) {
     const k = dateKey(-i);
     const d = new Date(); d.setDate(d.getDate() - i);
-    days.push({ key: k, label: d.toLocaleDateString('en-US',{month:'short',day:'numeric'}), short: d.toLocaleDateString('en-US',{weekday:'short'}) });
+    days.push({ key: k, short: chartRange <= 14 ? d.toLocaleDateString('en-US',{weekday:'short'}) : d.toLocaleDateString('en-US',{month:'short',day:'numeric'}) });
   }
-
-  // overview: avg mood per day
-  const avgData = days.map(d => {
-    const e = history[d.key];
-    if (!e || !e.moods) return null;
-    const vals = Object.values(e.moods).filter(v => v != null);
-    return vals.length ? +(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(1) : null;
-  });
-
   const labels = days.map(d => d.short);
 
-  if (overviewChartInst) overviewChartInst.destroy();
-  overviewChartInst = new Chart(document.getElementById('overviewChart'), {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: [{
-        data: avgData,
-        backgroundColor: avgData.map(v => v === null ? 'transparent' : '#E8C4C4'),
-        borderRadius: 6,
-        borderSkipped: false,
-      }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.raw !== null ? 'avg: ' + c.raw : 'no data' } } },
-      scales: {
-        x: { grid: { display: false }, ticks: { font: { size: 10, family: 'DM Sans' }, color: '#B8A49A' } },
-        y: { min: 1, max: 5, grid: { color: 'rgba(180,150,120,0.1)' }, ticks: { font: { size: 10 }, color: '#B8A49A', stepSize: 1 } }
-      }
-    }
+  // ── 1. CYCLE PHASE CORRELATION ──────────────────────────────────────────────
+  const phases = ['Menstrual','Follicular','Ovulatory','Luteal'];
+  const phaseColors = { Menstrual:'#E8A0A0', Follicular:'#A8BFA8', Ovulatory:'#E0CC96', Luteal:'#C4B0D8' };
+  const phaseBg = { Menstrual:'#FBF0F0', Follicular:'#EFF5EF', Ovulatory:'#FBF7EE', Luteal:'#F5F0FB' };
+  const phaseMoods = {};
+  const phaseDays = {};
+  phases.forEach(p => { phaseMoods[p] = {}; phaseDays[p] = 0; });
+
+  days.forEach(({ key }) => {
+    const e = history[key];
+    if (!e || !e.moods) return;
+    const p = getCyclePhase(key);
+    if (!p) return;
+    phaseDays[p.phase]++;
+    MOODS().forEach(m => {
+      if (!phaseMoods[p.phase][m.key]) phaseMoods[p.phase][m.key] = [];
+      phaseMoods[p.phase][m.key].push(e.moods[m.key] ?? 1);
+    });
   });
 
-  // mood legend
-  const legend = document.getElementById('moodLegend');
-  legend.innerHTML = '';
+  const phaseEl = document.getElementById('phaseCorrelation');
+  phaseEl.innerHTML = '';
+  const hasCycleData = phases.some(p => phaseDays[p] > 0);
+  if (!hasCycleData) {
+    phaseEl.innerHTML = `<div class="phase-no-data">set up cycle tracking in settings to see phase correlations</div>`;
+  } else {
+    phases.forEach(phase => {
+      if (phaseDays[phase] === 0) return;
+      const moodAvgs = MOODS().map(m => {
+        const vals = phaseMoods[phase][m.key] || [];
+        const avg = vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : 0;
+        return { ...m, avg };
+      }).filter(m => m.avg > 0).sort((a,b) => b.avg - a.avg);
+
+      const block = document.createElement('div');
+      block.className = 'phase-block';
+      block.innerHTML = `
+        <div class="phase-header">
+          <span class="phase-pill" style="background:${phaseBg[phase]};color:${phaseColors[phase]}">${phase}</span>
+          <span class="phase-day-count">${phaseDays[phase]} day${phaseDays[phase]!==1?'s':''} logged</span>
+        </div>
+        ${moodAvgs.slice(0,4).map(m => `
+          <div class="phase-mood-row">
+            <span class="phase-mood-name">${m.emoji} ${m.label}</span>
+            <div class="phase-bar-wrap">
+              <div class="phase-bar" style="width:${((m.avg-1)/4)*100}%;background:${m.color}"></div>
+            </div>
+            <span class="phase-mood-val">${m.avg.toFixed(1)}</span>
+          </div>`).join('')}
+        ${moodAvgs.length === 0 ? '<div class="phase-no-data">no data yet</div>' : ''}
+      `;
+      phaseEl.appendChild(block);
+    });
+  }
+
+  // ── 2. MOOD OVER TIME — pill selector, no checkboxes ───────────────────────
+  const pillsEl = document.getElementById('moodPills');
+  pillsEl.innerHTML = '';
   MOODS().forEach(m => {
     const btn = document.createElement('button');
-    btn.style.cssText = `padding:4px 10px;border-radius:20px;border:1px solid ${m.color};background:${activeMoodFilter===m.key?m.color:m.bg};color:${activeMoodFilter===m.key?'white':m.color};font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.15s;`;
-    btn.textContent = m.label;
-    btn.onclick = () => { activeMoodFilter = activeMoodFilter === m.key ? null : m.key; renderTrends(); };
-    legend.appendChild(btn);
+    const active = activeMoodFilters.has(m.key);
+    btn.style.cssText = `padding:5px 12px;border-radius:20px;border:1.5px solid ${m.color};background:${active ? m.color : 'transparent'};color:${active ? 'white' : m.color};font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.15s;`;
+    btn.textContent = m.emoji + ' ' + m.label;
+    btn.onclick = () => {
+      if (activeMoodFilters.has(m.key)) activeMoodFilters.delete(m.key);
+      else activeMoodFilters.add(m.key);
+      renderTrends();
+    };
+    pillsEl.appendChild(btn);
   });
 
-  // line chart
-  const filteredMoods = activeMoodFilter ? MOODS().filter(m => m.key === activeMoodFilter) : MOODS();
+  const filteredMoods = activeMoodFilters.size > 0 ? MOODS().filter(m => activeMoodFilters.has(m.key)) : MOODS();
   const datasets = filteredMoods.map(m => ({
     label: m.label,
     data: days.map(d => history[d.key]?.moods?.[m.key] ?? null),
     borderColor: m.color,
     backgroundColor: m.color + '22',
-    borderWidth: 1.5,
-    pointRadius: 3,
+    borderWidth: activeMoodFilters.size > 0 ? 2 : 1.5,
+    pointRadius: activeMoodFilters.size > 0 ? 4 : 2,
     pointBackgroundColor: m.color,
     tension: 0.4,
     spanGaps: false,
@@ -952,8 +1025,10 @@ function renderTrends() {
     options: {
       responsive: true, maintainAspectRatio: false,
       plugins: {
-        legend: { display: filteredMoods.length > 1, labels: { font: { size: 10, family: 'DM Sans' }, boxWidth: 12, color: '#8C7468' } },
-        tooltip: { mode: 'index', intersect: false }
+        legend: { display: false },
+        tooltip: { mode: 'index', intersect: false, callbacks: {
+          label: c => ` ${c.dataset.label}: ${c.raw}`
+        }}
       },
       scales: {
         x: { grid: { display: false }, ticks: { font: { size: 10 }, color: '#B8A49A' } },
@@ -962,33 +1037,34 @@ function renderTrends() {
     }
   });
 
-  // cycle correlation
-  const phases = ['Menstrual','Follicular','Ovulatory','Luteal'];
-  const phaseMoods = {};
-  phases.forEach(p => phaseMoods[p] = {});
-  Object.entries(history).forEach(([k, e]) => {
-    if (!e || !e.moods) return;
-    const p = getCyclePhase(k);
-    if (!p) return;
-    MOODS().forEach(m => {
-      if (!phaseMoods[p.phase][m.key]) phaseMoods[p.phase][m.key] = [];
-      if (e.moods[m.key] > 0) phaseMoods[p.phase][m.key].push(e.moods[m.key]);
+  // ── 3. MOOD BREAKDOWN — simple ranked bars ──────────────────────────────────
+  const breakdownEl = document.getElementById('moodBreakdown');
+  breakdownEl.innerHTML = '';
+  const moodAvgAll = MOODS().map(m => {
+    const vals = days.flatMap(d => {
+      const v = history[d.key]?.moods?.[m.key];
+      return v != null ? [v] : [];
     });
-  });
+    return { ...m, avg: vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : 0, count: vals.length };
+  }).filter(m => m.count > 0).sort((a,b) => b.avg - a.avg);
 
-  const grid = document.getElementById('correlationGrid');
-  grid.innerHTML = '';
-  phases.forEach(phase => {
-    const card = document.createElement('div');
-    card.className = `corr-card ${phaseClass(phase)}`;
-    const top = MOODS()
-      .map(m => ({ label: m.label, avg: phaseMoods[phase][m.key]?.length ? phaseMoods[phase][m.key].reduce((a,b)=>a+b,0)/phaseMoods[phase][m.key].length : 0 }))
-      .filter(x => x.avg > 0)
-      .sort((a,b) => b.avg - a.avg)
-      .slice(0, 2);
-    card.innerHTML = `<div class="corr-phase">${phase}</div><div class="corr-moods">${top.length ? top.map(x=>`${x.label} ${x.avg.toFixed(1)}`).join(' · ') : 'no data yet'}</div>`;
-    grid.appendChild(card);
-  });
+  if (!moodAvgAll.length) {
+    breakdownEl.innerHTML = `<div class="phase-no-data">no entries in this period yet</div>`;
+  } else {
+    moodAvgAll.forEach(m => {
+      const row = document.createElement('div');
+      row.className = 'breakdown-row';
+      row.innerHTML = `
+        <span class="breakdown-emoji">${m.emoji}</span>
+        <span class="breakdown-name">${m.label}</span>
+        <div class="breakdown-bar-wrap">
+          <div class="breakdown-bar" style="width:${((m.avg-1)/4)*100}%;background:${m.color}"></div>
+        </div>
+        <span class="breakdown-val">${m.avg.toFixed(1)}</span>
+      `;
+      breakdownEl.appendChild(row);
+    });
+  }
 }
 
 function setRange(r, btn) {
@@ -1002,23 +1078,96 @@ function setRange(r, btn) {
 function saveMoodPrefs() {
   localStorage.setItem('bloom_all_moods', JSON.stringify(allMoods));
   localStorage.setItem('bloom_enabled_moods', JSON.stringify([...enabledMoodKeys]));
+  localStorage.setItem('bloom_deleted_moods', JSON.stringify([...deletedMoodKeys]));
 }
 
 function renderMoodCustomizer() {
   const list = document.getElementById('moodCustomizeList');
   list.innerHTML = '';
-  allMoods.forEach((m, idx) => {
+  let dragSrc = null;
+
+  allMoods.filter(m => !deletedMoodKeys.has(m.key)).forEach((m, idx) => {
     const enabled = enabledMoodKeys.has(m.key);
     const isCustom = !ALL_MOODS_DEFAULT.find(d => d.key === m.key);
     const row = document.createElement('div');
     row.className = 'mood-customize-item' + (enabled ? '' : ' inactive');
+    row.draggable = true;
+    row.dataset.key = m.key;
     row.innerHTML = `
+      <span class="drag-handle">⠿</span>
       <span class="mood-item-emoji">${m.emoji}</span>
       <span class="mood-item-name">${m.label}</span>
       ${isCustom ? '<span class="mood-item-custom-tag">custom</span>' : ''}
       <div class="mood-check ${enabled ? 'checked' : ''}" onclick="toggleMood('${m.key}')">${enabled ? '✓' : ''}</div>
       ${isCustom ? `<button class="mood-delete" onclick="deleteCustomMood('${m.key}')">✕</button>` : ''}
     `;
+
+    // desktop drag
+    row.addEventListener('dragstart', e => {
+      dragSrc = row;
+      row.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    row.addEventListener('dragend', () => {
+      row.classList.remove('dragging');
+      list.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+    });
+    row.addEventListener('dragover', e => {
+      e.preventDefault();
+      if (dragSrc && dragSrc !== row) row.classList.add('drag-over');
+    });
+    row.addEventListener('dragleave', () => row.classList.remove('drag-over'));
+    row.addEventListener('drop', e => {
+      e.preventDefault();
+      if (!dragSrc || dragSrc === row) return;
+      const keys = [...list.querySelectorAll('.mood-customize-item')].map(el => el.dataset.key);
+      const fromIdx = allMoods.findIndex(m => m.key === dragSrc.dataset.key);
+      const toIdx = allMoods.findIndex(m => m.key === row.dataset.key);
+      const moved = allMoods.splice(fromIdx, 1)[0];
+      allMoods.splice(toIdx, 0, moved);
+      saveMoodPrefs();
+      renderMoodCustomizer();
+      renderLog();
+    });
+
+    // touch drag
+    let touchStartY = 0, touchItem = null;
+    row.addEventListener('touchstart', e => {
+      touchStartY = e.touches[0].clientY;
+      touchItem = row;
+      row.classList.add('dragging');
+    }, { passive: true });
+    row.addEventListener('touchmove', e => {
+      e.preventDefault();
+      const y = e.touches[0].clientY;
+      const els = [...list.querySelectorAll('.mood-customize-item')];
+      els.forEach(el => el.classList.remove('drag-over'));
+      const target = els.find(el => {
+        const r = el.getBoundingClientRect();
+        return y >= r.top && y <= r.bottom && el !== touchItem;
+      });
+      if (target) target.classList.add('drag-over');
+    }, { passive: false });
+    row.addEventListener('touchend', e => {
+      row.classList.remove('dragging');
+      const y = e.changedTouches[0].clientY;
+      const els = [...list.querySelectorAll('.mood-customize-item')];
+      const target = els.find(el => {
+        const r = el.getBoundingClientRect();
+        return y >= r.top && y <= r.bottom && el !== touchItem;
+      });
+      els.forEach(el => el.classList.remove('drag-over'));
+      if (target) {
+        const fromIdx = allMoods.findIndex(m => m.key === touchItem.dataset.key);
+        const toIdx = allMoods.findIndex(m => m.key === target.dataset.key);
+        const moved = allMoods.splice(fromIdx, 1)[0];
+        allMoods.splice(toIdx, 0, moved);
+        saveMoodPrefs();
+        renderMoodCustomizer();
+        renderLog();
+      }
+    });
+
     list.appendChild(row);
   });
 }
@@ -1059,12 +1208,13 @@ function addCustomMood() {
 }
 
 function deleteCustomMood(key) {
-  allMoods = allMoods.filter(m => m.key !== key);
+  // mark as deleted — keeps data in sheets but hides from UI
+  deletedMoodKeys.add(key);
   enabledMoodKeys.delete(key);
   saveMoodPrefs();
   renderMoodCustomizer();
   renderLog();
-  showToast('mood removed');
+  showToast('mood hidden · data kept in sheets');
 }
 
 // ── GOOGLE SHEETS SYNC ────────────────────────────────────────────────────────
@@ -1180,6 +1330,7 @@ async function ensureSheet() {
 }
 
 function buildHeader() {
+  // include all moods (even deleted) so sheet columns are never lost
   return ['Date', 'Cycle Phase', ...allMoods.map(m => m.label), 'Notes', 'Synced At'];
 }
 
